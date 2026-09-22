@@ -12,19 +12,23 @@ export interface WelcomeEmailProps {
   name?: string;
 }
 
-export function WelcomeEmail({ name = "there" }: WelcomeEmailProps) {
+export function WelcomeEmail(props: {
+  locales: {
+    headline: string;
+    greeting: string;
+    description: string;
+    signature: string;
+  };
+}) {
   return (
     <Html>
       <Head />
-      <Preview>Welcome to React Email Testing App</Preview>
+      <Preview>{props.locales.headline}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>Hi {name},</Heading>
-          <Text style={paragraph}>
-            Thanks for checking out this simple email template built with
-            react-email.
-          </Text>
-          <Text style={paragraph}>— The Team</Text>
+          <Heading style={heading}>{props.locales.greeting},</Heading>
+          <Text style={paragraph}>{props.locales.description}</Text>
+          <Text style={paragraph}>{props.locales.signature}</Text>
         </Container>
       </Body>
     </Html>
