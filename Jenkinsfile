@@ -52,6 +52,17 @@ pipeline {
                 }
             }
         }
+        stage('Trivy Scan') {
+            steps {
+                sh """
+                    docker run --rm \\
+                        --volume /var/run/docker.sock:/var/run/docker.sock \\
+                        --volume trivy-cache:/root/.cache/ \\
+                        aquasec/trivy:0.74.0 \\
+                        image --db-repository ghcr.io/aquasecurity/trivy-db:2 --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 ${IMAGE_NAME}:${env.BUILD_NUMBER}
+                """
+            }
+        }
     }
     post {
         success {
