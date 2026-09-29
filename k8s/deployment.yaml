@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: react-email-testing-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: react-email-testing-app
+  template:
+    metadata:
+      labels:
+        app: react-email-testing-app
+    spec:
+      containers:
+        - name: react-email-testing-app
+          image: phollome/react-email-testing-app:latest
+          ports:
+            - containerPort: 3000

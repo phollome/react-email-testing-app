@@ -1,9 +1,12 @@
 pipeline {
     agent any
     environment {
-        IMAGE_NAME = 'react-email-testing-app'
+        IMAGE_NAME = 'phollome/react-email-testing-app'
+        APP_NAME = 'react-email-testing-app'
+        DOCKERHUB_CREDENTIALS_ID = 'dockerhub'
         REPO_URL = 'https://github.com/phollome/react-email-testing-app.git'
         BRANCH_NAME = 'main'
+        TAG = "${env.BUILD_NUMBER}"
     }
     stages {
         stage('Checkout') {
@@ -46,7 +49,7 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
-                    def image = docker.build("${IMAGE_NAME}:${env.BUILD_NUMBER}")
+                    def image = docker.build("${IMAGE_NAME}:${TAG}")
                     image.tag('latest')
 
                 }
@@ -59,14 +62,31 @@ pipeline {
                         --volume /var/run/docker.sock:/var/run/docker.sock \\
                         --volume trivy-cache:/root/.cache/ \\
                         aquasec/trivy:0.74.0 \\
-                        image --db-repository ghcr.io/aquasecurity/trivy-db:2 --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 ${IMAGE_NAME}:${env.BUILD_NUMBER}
+                        image --db-repository ghcr.io/aquasecurity/trivy-db:2 --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 ${IMAGE_NAME}:${TAG}
                 """
+            }
+        }
+        stage('Push Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKERHUB_CREDENTIALS_ID) {
+                        docker.image("${IMAGE_NAME}:${TAG}").push()
+                        docker.image("${IMAGE_NAME}:latest").push()
+                    }
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh "microk8s kubectl apply -f k8s/"
+                sh "microk8s kubectl set image deployment/${APP_NAME} ${APP_NAME}=${IMAGE_NAME}:${TAG}"
+                sh "microk8s kubectl rollout status deployment/${APP_NAME} --timeout=120s"
             }
         }
     }
     post {
         success {
-            echo "Build succeeded for image: ${IMAGE_NAME}:${env.BUILD_NUMBER} (also tagged ${IMAGE_NAME}:latest)"
+            echo "Build and deployment succeeded for image: ${IMAGE_NAME}:${TAG}"
         }
         failure {
             echo "Build failed - see logs for details"
