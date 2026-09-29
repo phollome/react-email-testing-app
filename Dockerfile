@@ -21,6 +21,8 @@ FROM node:24-alpine AS runtime
 
 WORKDIR /app
 
+RUN npm install --global npm@12.1.0
+
 COPY --from=prod-dependencies /app-dependencies/node_modules ./node_modules
 COPY --from=build /app-build/build ./build
 
