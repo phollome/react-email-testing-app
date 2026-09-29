@@ -24,7 +24,7 @@ pipeline {
             steps {
                 script {
                     docker.image('mcr.microsoft.com/playwright:v1.63.0-noble').inside {
-                        sh 'npm ci && npm run typecheck && npm test'
+                        sh 'npm ci --cache /tmp/npm-cache && npm run typecheck && npm test'
                     }
                 }
             }
