@@ -11,12 +11,35 @@ pipeline {
                 git branch: "${BRANCH_NAME}", url: "${REPO_URL}"
             }
         } 
+        stage('Secret Scan') {
+            steps {
+                script {
+                    docker.image('zricethezav/gitleaks:v8.24.2').inside('--entrypoint=') {
+                        sh 'gitleaks detect --source . --redact --exit-code 1'
+                    }
+                }
+            }
+        }
         stage('Quality Checks') {
             steps {
                 script {
-                    docker.image('node:24-alpine').inside {
+                    docker.image('mcr.microsoft.com/playwright:v1.63.0-noble').inside {
                         sh 'npm ci && npm run typecheck && npm test'
                     }
+                }
+            }
+        }
+        stage('Browser Smoke Test') {
+            steps {
+                script {
+                    docker.image('mcr.microsoft.com/playwright:v1.63.0-noble').inside {
+                        sh 'npm run test:e2e'
+                    }
+                }
+            }
+            post {
+                always {
+                    junit testResults: 'test-results/e2e-junit.xml', allowEmptyResults: true
                 }
             }
         }
@@ -26,33 +49,6 @@ pipeline {
                     def image = docker.build("${IMAGE_NAME}:${env.BUILD_NUMBER}")
                     image.tag('latest')
 
-                }
-            }
-        }
-        stage('Smoke Test') {
-            steps {
-                script {
-                    docker.image("${IMAGE_NAME}:${env.BUILD_NUMBER}").withRun('') { container ->
-                        sh """
-                            docker exec ${container.id} node -e '
-                                const deadline = Date.now() + 30000;
-                                async function probe() {
-                                    try {
-                                        const response = await fetch("http://127.0.0.1:3000/");
-                                        if (!response.ok) throw new Error("HTTP " + response.status);
-                                        console.log("Smoke test passed");
-                                    } catch (error) {
-                                        if (Date.now() >= deadline) {
-                                            console.error(error);
-                                            process.exit(1);
-                                        }
-                                        setTimeout(probe, 1000);
-                                    }
-                                }
-                                probe();
-                            '
-                        """
-                    }
                 }
             }
         }
